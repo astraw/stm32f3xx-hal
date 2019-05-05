@@ -3,6 +3,11 @@
 use crate::hal::timer::{CountDown, Periodic};
 #[cfg(any(
     feature = "stm32f302",
+    feature = "stm32f303"
+))]
+use crate::stm32::TIM1;
+#[cfg(any(
+    feature = "stm32f302",
     feature = "stm32f303",
     feature = "stm32f373",
     feature = "stm32f378",
@@ -36,7 +41,7 @@ use cast::{u16, u32};
 use nb;
 use void::Void;
 
-use crate::rcc::{Clocks, APB1};
+use crate::rcc::{Clocks, APB1, APB2};
 use crate::time::Hertz;
 
 /// Hardware timers
@@ -161,6 +166,7 @@ hal! {
 
 #[cfg(any(feature = "stm32f302", feature = "stm32f303"))]
 hal! {
+    TIM1: (tim1, APB2, tim1en, tim1rst),
     TIM2: (tim2, APB1, tim2en, tim2rst),
     TIM3: (tim3, APB1, tim3en, tim3rst),
     TIM4: (tim4, APB1, tim4en, tim4rst),
