@@ -53,7 +53,7 @@ pub enum Event {
 }
 
 macro_rules! hal {
-    ($($TIM:ident: ($tim:ident, $timXen:ident, $timXrst:ident),)+) => {
+    ($($TIM:ident: ($tim:ident, $APB:ident, $timXen:ident, $timXrst:ident),)+) => {
         $(
             impl Periodic for Timer<$TIM> {}
 
@@ -103,14 +103,14 @@ macro_rules! hal {
                 // even if the `$TIM` are non overlapping (compare to the `free` function below
                 // which just works)
                 /// Configures a TIM peripheral as a periodic count down timer
-                pub fn $tim<T>(tim: $TIM, timeout: T, clocks: Clocks, apb1: &mut APB1) -> Self
+                pub fn $tim<T>(tim: $TIM, timeout: T, clocks: Clocks, apb: &mut $APB) -> Self
                 where
                     T: Into<Hertz>,
                 {
                     // enable and reset peripheral to a clean slate state
-                    apb1.enr().modify(|_, w| w.$timXen().set_bit());
-                    apb1.rstr().modify(|_, w| w.$timXrst().set_bit());
-                    apb1.rstr().modify(|_, w| w.$timXrst().clear_bit());
+                    apb.enr().modify(|_, w| w.$timXen().set_bit());
+                    apb.rstr().modify(|_, w| w.$timXrst().set_bit());
+                    apb.rstr().modify(|_, w| w.$timXrst().clear_bit());
 
                     let mut timer = Timer {
                         clocks,
@@ -155,25 +155,25 @@ macro_rules! hal {
 
 #[cfg(any(feature = "stm32f301", feature = "stm32f318"))]
 hal! {
-    TIM2: (tim2, tim2en, tim2rst),
-    TIM6: (tim6, tim6en, tim6rst),
+    TIM2: (tim2, APB1, tim2en, tim2rst),
+    TIM6: (tim6, APB1, tim6en, tim6rst),
 }
 
 #[cfg(any(feature = "stm32f302", feature = "stm32f303"))]
 hal! {
-    TIM2: (tim2, tim2en, tim2rst),
-    TIM3: (tim3, tim3en, tim3rst),
-    TIM4: (tim4, tim4en, tim4rst),
-    TIM6: (tim6, tim6en, tim6rst),
-    TIM7: (tim7, tim7en, tim7rst),
+    TIM2: (tim2, APB1, tim2en, tim2rst),
+    TIM3: (tim3, APB1, tim3en, tim3rst),
+    TIM4: (tim4, APB1, tim4en, tim4rst),
+    TIM6: (tim6, APB1, tim6en, tim6rst),
+    TIM7: (tim7, APB1, tim7en, tim7rst),
 }
 
 #[cfg(feature = "stm32f334")]
 hal! {
-    TIM2: (tim2, tim2en, tim2rst),
-    TIM3: (tim3, tim3en, tim3rst),
-    TIM6: (tim6, tim6en, tim6rst),
-    TIM7: (tim7, tim7en, tim7rst),
+    TIM2: (tim2, APB1, tim2en, tim2rst),
+    TIM3: (tim3, APB1, tim3en, tim3rst),
+    TIM6: (tim6, APB1, tim6en, tim6rst),
+    TIM7: (tim7, APB1, tim7en, tim7rst),
 }
 
 #[cfg(any(
@@ -184,14 +184,14 @@ hal! {
     feature = "stm32f398"
 ))]
 hal! {
-    TIM2: (tim2, tim2en, tim2rst),
-    TIM3: (tim3, tim3en, tim3rst),
-    TIM4: (tim4, tim4en, tim4rst),
-    TIM5: (tim5, tim5en, tim5rst),
-    TIM6: (tim6, tim6en, tim6rst),
-    TIM7: (tim7, tim7en, tim7rst),
-    TIM12: (tim12, tim12en, tim12rst),
-    TIM13: (tim13, tim13en, tim13rst),
-    TIM14: (tim14, tim14en, tim14rst),
-    TIM18: (tim18, tim18en, tim18rst),
+    TIM2: (tim2, APB1, tim2en, tim2rst),
+    TIM3: (tim3, APB1, tim3en, tim3rst),
+    TIM4: (tim4, APB1, tim4en, tim4rst),
+    TIM5: (tim5, APB1, tim5en, tim5rst),
+    TIM6: (tim6, APB1, tim6en, tim6rst),
+    TIM7: (tim7, APB1, tim7en, tim7rst),
+    TIM12: (tim12, APB1, tim12en, tim12rst),
+    TIM13: (tim13, APB1, tim13en, tim13rst),
+    TIM14: (tim14, APB1, tim14en, tim14rst),
+    TIM18: (tim18, APB1, tim18en, tim18rst),
 }
