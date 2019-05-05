@@ -65,39 +65,27 @@ macro_rules! hal {
             impl CountDown for Timer<$TIM> {
                 type Time = Hertz;
 
-                // NOTE(allow) `w.psc().bits()` is safe for TIM{6,7} but not for TIM{2,3,4} due to
-                // some SVD omission
                 #[allow(unused_unsafe)]
                 fn start<T>(&mut self, timeout: T)
                 where
                     T: Into<Hertz>,
                 {
                     // pause
-                    self.tim.cr1.modify(|_, w| w.cen().clear_bit());
+                    self.pause();
                     // restart counter
                     self.tim.cnt.reset();
 
-                    self.timeout = timeout.into();
-
-                    let frequency = self.timeout.0;
-                    let ticks = self.clocks.pclk1().0 * if self.clocks.ppre1() == 1 { 1 } else { 2 }
-                        / frequency;
-
-                    let psc = u16((ticks - 1) / (1 << 16)).unwrap();
-                    self.tim.psc.write(|w| unsafe { w.psc().bits(psc) });
-
-                    let arr = u16(ticks / u32(psc + 1)).unwrap();
-                    self.tim.arr.write(|w| unsafe { w.bits(u32(arr)) });
+                    self.set_freq(timeout);
 
                     // start counter
-                    self.tim.cr1.modify(|_, w| w.cen().set_bit());
+                    self.resume()
                 }
 
                 fn wait(&mut self) -> nb::Result<(), Void> {
                     if self.tim.sr.read().uif().bit_is_clear() {
                         Err(nb::Error::WouldBlock)
                     } else {
-                        self.tim.sr.modify(|_, w| w.uif().clear_bit());
+                        self.clear_uif_bit();
                         Ok(())
                     }
                 }
@@ -127,6 +115,51 @@ macro_rules! hal {
                     timer
                 }
 
+                // NOTE(allow) `w.psc().bits()` is safe for TIM{6,7} but not for TIM{2,3,4} due to
+                // some SVD omission
+                #[allow(unused_unsafe)]
+                pub fn set_freq<T>(&mut self, timeout: T)
+                where
+                    T: Into<Hertz>,
+                {
+                    self.timeout = timeout.into();
+
+                    let frequency = self.timeout.0;
+                    let ticks = self.clocks.pclk1().0 * if self.clocks.ppre1() == 1 { 1 } else { 2 }
+                        / frequency;
+
+                    let psc = u16((ticks - 1) / (1 << 16)).unwrap();
+                    self.tim.psc.write(|w| unsafe { w.psc().bits(psc) });
+
+                    let arr = u16(ticks / u32(psc + 1)).unwrap();
+                    self.tim.arr.write(|w| unsafe { w.bits(u32(arr)) });
+                }
+
+                /// Clear uif bit
+                pub fn clear_uif_bit(&mut self) {
+                    self.tim.sr.modify(|_, w| w.uif().clear_bit());
+                }
+
+                /// Pauses the TIM peripheral
+                pub fn pause(&mut self) {
+                    self.tim.cr1.modify(|_, w| w.cen().clear_bit());
+                }
+
+                /// Resume (unpause) the TIM peripheral
+                pub fn resume(&mut self) {
+                    self.tim.cr1.modify(|_, w| w.cen().set_bit());
+                }
+
+                /// Reset the counter of the TIM peripheral
+                pub fn reset_counter(&mut self) {
+                    self.tim.cnt.reset();
+                }
+
+                /// Read the counter of the TIM peripheral
+                pub fn counter(&self) -> u32 {
+                    self.tim.cnt.read().bits()
+                }
+
                 /// Starts listening for an `event`
                 pub fn listen(&mut self, event: Event) {
                     match event {
@@ -148,9 +181,9 @@ macro_rules! hal {
                 }
 
                 /// Releases the TIM peripheral
-                pub fn free(self) -> $TIM {
+                pub fn free(mut self) -> $TIM {
                     // pause counter
-                    self.tim.cr1.modify(|_, w| w.cen().clear_bit());
+                    self.pause();
                     self.tim
                 }
             }
