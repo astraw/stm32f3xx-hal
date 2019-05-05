@@ -63,3 +63,5 @@ pub mod spi;
 pub mod time;
 #[cfg(feature = "device-selected")]
 pub mod timer;
+#[cfg(feature = "device-selected")]
+pub mod pwm;
