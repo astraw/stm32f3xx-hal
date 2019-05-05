@@ -1,5 +1,8 @@
 //! Timers
 
+// TODO: on the f303 at least, only TIM2, TIM3, TIM4 can support 32 bits.
+// The other times are 16 bit.
+
 use crate::hal::timer::{CountDown, Periodic};
 #[cfg(any(
     feature = "stm32f302",
