@@ -154,6 +154,11 @@ macro_rules! hal {
                     timer
                 }
 
+                /// Read the counter of the TIM peripheral
+                pub fn counter(&self) -> u32 {
+                    self.tim.cnt.read().bits()
+                }
+
                 /// Starts listening for an `event`
                 pub fn listen(&mut self, event: Event) {
                     match event {
