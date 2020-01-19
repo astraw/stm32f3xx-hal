@@ -178,6 +178,11 @@ macro_rules! hal {
                     }
                 }
 
+                /// Resumes the timer
+                pub fn resume(&mut self) {
+                    self.tim.cr1.modify(|_, w| w.cen().enabled());
+                }
+
                 /// Stops the timer
                 pub fn stop(&mut self) {
                     self.tim.cr1.modify(|_, w| w.cen().disabled());
