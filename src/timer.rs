@@ -159,6 +159,11 @@ macro_rules! hal {
                     self.tim.cnt.read().bits()
                 }
 
+                /// Reset the counter of the TIM peripheral
+                pub fn reset_counter(&mut self) {
+                    self.tim.cnt.reset();
+                }
+
                 /// Starts listening for an `event`
                 pub fn listen(&mut self, event: Event) {
                     match event {
