@@ -24,6 +24,8 @@
     let mut rcc = dp.RCC.constrain();
     let clocks = rcc.cfgr.freeze(&mut flash.acr);
 
+    TODO: fix this to match interface
+
     // Set the resolution of our duty cycle to 9000 and our period to
     // 50hz.
     let mut (c1_no_pins, _, _, c4_no_pins) =
@@ -381,9 +383,7 @@ use crate::gpio::gpiof::PF6;
 ))]
 use crate::gpio::gpiof::PF9;
 
-use crate::rcc::Clocks;
 use crate::stm32::RCC;
-use crate::time::Hertz;
 
 /// Output Compare Channel 1 of Timer 1 (type state)
 pub struct TIM2_CH1 {}
@@ -423,7 +423,7 @@ pub struct PwmChannel<X, T> {
 }
 
 macro_rules! pwm_timer_private {
-    ($timx:ident, $TIMx:ty, $res:ty, $apbxenr:ident, $apbxrstr:ident, $pclkz:ident, $timxrst:ident, $timxen:ident, $enable_break_timer:expr, [$($TIMx_CHy:ident),+], [$($x:ident),+]) => {
+    ($timx:ident, $TIMx:ty, $res:ty, $psc:ty, $apbxenr:ident, $apbxrstr:ident, $pclkz:ident, $timxrst:ident, $timxen:ident, $enable_break_timer:expr, [$($TIMx_CHy:ident),+], [$($x:ident),+]) => {
         /// Create one or more output channels from a TIM Peripheral
         /// This function requires the maximum resolution of the duty cycle,
         /// the period of the PWM signal and the frozen clock configuration.
@@ -434,7 +434,7 @@ macro_rules! pwm_timer_private {
         /// a resolution of 9000.  This allows the servo to be set in increments
         /// of exactly one degree.
         #[allow(unused_parens)]
-        pub fn $timx(tim: $TIMx, res: $res, freq: Hertz, clocks: &Clocks) -> ($(PwmChannel<$TIMx_CHy, NoPins>),+) {
+        pub fn $timx(tim: $TIMx, arr: $res, psc: $psc) -> ($(PwmChannel<$TIMx_CHy, NoPins>),+) {
             // Power the timer and reset it to ensure a clean state
             // We use unsafe here to abstract away this implementation detail
             // Justification: It is safe because only scopes with mutable references
@@ -452,16 +452,10 @@ macro_rules! pwm_timer_private {
             // Oddly this is unsafe for some timers and not others
             #[allow(unused_unsafe)]
             tim.arr.write(|w| unsafe {
-                w.arr().bits(res)
+                w.arr().bits(arr)
             });
 
-            // Set the pre-scaler
-            // TODO: This is repeated in the timer/pwm module.
-            // It might make sense to move into the clocks as a crate-only property.
-            // TODO: ppre1 is used in timer.rs (never ppre2), should this be dynamic?
-            let clock_freq = clocks.$pclkz().0 * if clocks.ppre1() == 1 { 1 } else { 2 };
-            let prescale_factor = clock_freq / res as u32 / freq.0;
-            tim.psc.write(|w| w.psc().bits(prescale_factor as u16 - 1));
+            tim.psc.write(|w| w.psc().bits(psc));
 
             // Make the settings reload immediately
             tim.egr.write(|w| w.ug().set_bit());
@@ -481,11 +475,12 @@ macro_rules! pwm_timer_private {
 }
 
 macro_rules! pwm_timer_basic {
-    ($timx:ident, $TIMx:ty, $res:ty, $apbxenr:ident, $apb1rstr:ident, $pclkz:ident, $timxrst:ident, $timxen:ident, [$($TIMx_CHy:ident),+], [$($x:ident),+]) => {
+    ($timx:ident, $TIMx:ty, $res:ty, $psc:ty, $apbxenr:ident, $apb1rstr:ident, $pclkz:ident, $timxrst:ident, $timxen:ident, [$($TIMx_CHy:ident),+], [$($x:ident),+]) => {
         pwm_timer_private!(
             $timx,
             $TIMx,
             $res,
+            $psc,
             $apbxenr,
             $apb1rstr,
             $pclkz,
@@ -499,11 +494,12 @@ macro_rules! pwm_timer_basic {
 }
 
 macro_rules! pwm_timer_with_break {
-    ($timx:ident, $TIMx:ty, $res:ty, $apbxenr:ident, $apbxrstr:ident, $pclkz:ident, $timxrst:ident, $timxen:ident, [$($TIMx_CHy:ident),+], [$($x:ident),+]) => {
+    ($timx:ident, $TIMx:ty, $res:ty, $psc:ty, $apbxenr:ident, $apbxrstr:ident, $pclkz:ident, $timxrst:ident, $timxen:ident, [$($TIMx_CHy:ident),+], [$($x:ident),+]) => {
         pwm_timer_private!(
             $timx,
             $TIMx,
             $res,
+            $psc,
             $apbxenr,
             $apbxrstr,
             $pclkz,
@@ -764,6 +760,7 @@ macro_rules! tim1_common {
             tim1,
             TIM1,
             u16,
+            u16,
             apb2enr,
             apb2rstr,
             pclk2,
@@ -874,6 +871,7 @@ pwm_timer_basic!(
     tim2,
     TIM2,
     u32,
+    u16,
     apb1enr,
     apb1rstr,
     pclk1,
@@ -973,6 +971,7 @@ macro_rules! tim3_common {
         pwm_timer_basic!(
             tim3,
             TIM3,
+            u16,
             u16,
             apb1enr,
             apb1rstr,
@@ -1113,6 +1112,7 @@ macro_rules! tim4_common {
             tim4,
             TIM4,
             u16,
+            u16,
             apb1enr,
             apb1rstr,
             pclk1,
@@ -1209,6 +1209,7 @@ macro_rules! tim5 {
             tim5,
             TIM5,
             u32,
+            u16,
             apb1enr,
             apb1rstr,
             pclk1,
@@ -1266,6 +1267,7 @@ macro_rules! tim8 {
         pwm_timer_with_break!(
             tim8,
             TIM8,
+            u16,
             u16,
             apb2enr,
             apb2rstr,
@@ -1343,6 +1345,7 @@ macro_rules! tim12 {
             tim12,
             TIM12,
             u16,
+            u16,
             apb1enr,
             apb1rstr,
             pclk1,
@@ -1391,6 +1394,7 @@ macro_rules! tim13 {
             tim13,
             TIM13,
             u16,
+            u16,
             apb1enr,
             apb1rstr,
             pclk1,
@@ -1434,6 +1438,7 @@ macro_rules! tim14 {
             tim14,
             TIM14,
             u16,
+            u16,
             apb1enr,
             apb1rstr,
             pclk1,
@@ -1463,6 +1468,7 @@ tim14!();
 pwm_timer_with_break!(
     tim15,
     TIM15,
+    u16,
     u16,
     apb2enr,
     apb2rstr,
@@ -1516,6 +1522,7 @@ pwm_timer_with_break!(
     tim16,
     TIM16,
     u16,
+    u16,
     apb2enr,
     apb2rstr,
     pclk2,
@@ -1552,6 +1559,7 @@ pwm_channel1n_pin!(TIM16, TIM16_CH1, output_to_pb6, PB6, AF1);
 pwm_timer_with_break!(
     tim17,
     TIM17,
+    u16,
     u16,
     apb2enr,
     apb2rstr,
@@ -1601,6 +1609,7 @@ macro_rules! tim19 {
         pwm_timer_basic!(
             tim19,
             TIM19,
+            u16,
             u16,
             apb2enr,
             apb2rstr,
@@ -1659,6 +1668,7 @@ macro_rules! tim20 {
         pwm_timer_basic!(
             tim20,
             TIM20,
+            u16,
             u16,
             apb2enr,
             apb2rstr,
